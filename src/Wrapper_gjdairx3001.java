@@ -1,4 +1,3 @@
-
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -56,8 +55,33 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 			System.out.println(result.getStatus());
 		}
 	}
+	
+	public BookingResult getBookingInfo(FlightSearchParam param) {
+		// https://www.tuifly.com/en/search?origin=SXF&destination=KGS&start=2014-07-12&sort=PriceAsc&triptype=oneway&duration=7&adults=1&children=0&infants=0&carrier=DE
+		String bookingUrlPre = "http://www.tuifly.com/en/index.html";
+		BookingResult bookingResult = new BookingResult();
+		
+		BookingInfo bookingInfo = new BookingInfo();
+		bookingInfo.setAction(bookingUrlPre);
+		bookingInfo.setMethod("post");	
+		Map<String, String> map = new LinkedHashMap<String, String>();
+		map.put("origin", param.getDep());
+		map.put("destination", param.getArr());
+		map.put("start", param.getDepDate().replaceAll("-", "/"));
+		map.put("sort", "PriceAsc");
+		map.put("triptype", "oneway");
+		map.put("duration", "07");
+		map.put("adults", "1");
+		map.put("children", "0");
+		map.put("infants", "0");
+		map.put("carrier", "DE");
+		map.put("btnsubmit", "Flight Search");
+		bookingInfo.setInputs(map);
+		bookingResult.setData(bookingInfo);
+		bookingResult.setRet(true);
+		return bookingResult;
+	}
 
-	@Override
 	public String getHtml(FlightSearchParam param) {
 		QFGetMethod get = null;	
 		try {	
@@ -121,7 +145,6 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		return "Exception";
 	}
 
-	@Override
 	public ProcessResultInfo process(String html, FlightSearchParam param) {
 		String htmlStr = html;
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -307,31 +330,4 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		}
 	}
 
-	@Override
-	public BookingResult getBookingInfo(FlightSearchParam param) {
-		// https://www.tuifly.com/en/search?origin=SXF&destination=KGS&start=2014-07-12&sort=PriceAsc&triptype=oneway&duration=7&adults=1&children=0&infants=0&carrier=DE
-		String bookingUrlPre = "http://www.tuifly.com/en/index.html";
-		BookingResult bookingResult = new BookingResult();
-		
-		BookingInfo bookingInfo = new BookingInfo();
-		bookingInfo.setAction(bookingUrlPre);
-		bookingInfo.setMethod("post");	
-		Map<String, String> map = new LinkedHashMap<String, String>();
-		map.put("ro", "0");
-		map.put("from", param.getDep());
-		map.put("to", param.getArr());
-		map.put("cur", "EUR");
-		map.put("sdate", param.getDepDate().replaceAll("-", "/"));
-		map.put("edate", param.getDepDate().replaceAll("-", "/"));
-		map.put("adult", "1");
-		map.put("child", "0");
-		map.put("infant", "0");
-		map.put("view", "0");
-		map.put("btnsubmit", "Flight Search");
-		bookingInfo.setInputs(map);
-		bookingResult.setData(bookingInfo);
-		bookingResult.setRet(true);
-		return bookingResult;
-	}
-	
 }
