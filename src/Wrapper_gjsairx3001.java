@@ -6,8 +6,11 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.httpclient.Cookie;
 import org.apache.commons.lang.StringUtils;
+
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.google.common.collect.Lists;
 import com.qunar.qfwrapper.bean.booking.BookingInfo;
 import com.qunar.qfwrapper.bean.booking.BookingResult;
@@ -46,6 +49,8 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		ProcessResultInfo result = new ProcessResultInfo();
 		// 拼装返回的结果
 		result = new  Wrapper_gjsairx3001().process(html,searchParam);
+		System.out.println(com.alibaba.fastjson.JSON.toJSONString(result,
+				SerializerFeature.DisableCircularReferenceDetect));
 		if(result.isRet() && result.getStatus().equals(Constants.SUCCESS))
 		{
 			List<RoundTripFlightInfo> flightList = (List<RoundTripFlightInfo>) result.getData();
@@ -67,7 +72,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		
 		BookingInfo bookingInfo = new BookingInfo();
 		bookingInfo.setAction(bookingUrlPre);
-		bookingInfo.setMethod("post");	
+		bookingInfo.setMethod("get");	
 		Map<String, String> map = new LinkedHashMap<String, String>();
 		map.put("origin", param.getDep());
 		map.put("destination", param.getArr());
@@ -80,7 +85,6 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		map.put("children", "0");
 		map.put("infants", "0");
 		map.put("carrier", "DE");
-		map.put("btnsubmit", "Flight Search");
 		bookingInfo.setInputs(map);
 		bookingResult.setData(bookingInfo);
 		bookingResult.setRet(true);
@@ -112,8 +116,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		    	headerMap.put(h.getName(), h.getValue());
 			}
 		    //System.out.println(Arrays.toString(httpClient.getState().getCookies()));
-		    String htmlStr = get.getResponseBodyAsString();
-		    return htmlStr;
+		    return get.getResponseBodyAsString();
 		} catch (Exception e) {			
 			e.printStackTrace();
 		} finally{

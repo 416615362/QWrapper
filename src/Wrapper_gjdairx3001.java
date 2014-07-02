@@ -42,6 +42,8 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		ProcessResultInfo result = new ProcessResultInfo();
 		// 拼装返回的结果
 		result = new  Wrapper_gjdairx3001().process(html,searchParam);
+		//System.out.println(com.alibaba.fastjson.JSON.toJSONString(result,
+		//		SerializerFeature.DisableCircularReferenceDetect));
 		if(result.isRet() && result.getStatus().equals(Constants.SUCCESS))
 		{
 			List<OneWayFlightInfo> flightList = (List<OneWayFlightInfo>) result.getData();
@@ -63,7 +65,7 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		
 		BookingInfo bookingInfo = new BookingInfo();
 		bookingInfo.setAction(bookingUrlPre);
-		bookingInfo.setMethod("post");	
+		bookingInfo.setMethod("get");	
 		Map<String, String> map = new LinkedHashMap<String, String>();
 		map.put("origin", param.getDep());
 		map.put("destination", param.getArr());
@@ -75,7 +77,6 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		map.put("children", "0");
 		map.put("infants", "0");
 		map.put("carrier", "DE");
-		map.put("btnsubmit", "Flight Search");
 		bookingInfo.setInputs(map);
 		bookingResult.setData(bookingInfo);
 		bookingResult.setRet(true);
@@ -88,7 +89,6 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 			QFHttpClient httpClient = new QFHttpClient(param, false);
 			
 			/*对于需要cookie的网站，请自己处理cookie（必须）
-			* 例如：
 			* httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
 			*/
 			// 请求地址
@@ -133,8 +133,7 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 			}
 			 */
 		    httpClient.executeMethod(get);
-		    String htmlStr = get.getResponseBodyAsString();
-		    return htmlStr;
+		    return get.getResponseBodyAsString();
 		} catch (Exception e) {			
 			e.printStackTrace();
 		} finally{
@@ -169,7 +168,7 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 			// 第二次次请求
 			String resultStr = StringUtils.substringBetween(htmlStr, "<tbody class=\"js-tbody\">", "</tbody>");
 			String requestUrl = StringUtils.substringBetween(resultStr,"<td class=\"cell button-cell more js-select\">","</td>");
-			String hrefUrl = StringUtils.substringBetween(requestUrl,"href=\"","\"");
+			String hrefUrl = StringUtils.substringBetween(requestUrl,"href=\"","\"").replaceAll("amp;", "");
 			// 请求地址
 			//https://www.tuifly.com/SearchAndSelect.aspx?culture=en-GB&nextState=select&ADT=1&CHD=0&INF=0&selection=BRIZRH20140920
 			QFGetMethod getMethod = new QFGetMethod(hrefUrl);
@@ -186,13 +185,16 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 			if (myHtml.contains("Sorry, no flights available. Please select another date or station and try again.")) {
 				result.setRet(false);
 				result.setStatus(Constants.INVALID_DATE);
-				return result;			
+				return result;
 			}
+			// 去程html片段
+			String departHtml = StringUtils.substringBetween(myHtml, "<div class=\"flights qDepartureFlight\">", "<div class=\"noFlights qNoResultsForFilter hidden\">");
+			System.out.println(departHtml);
 			// 转换起飞时间格式如：05.07.14
 			String[] depDateArr = param.getDepDate().split("-");
 	    	String depDate = depDateArr[2]+"."+depDateArr[1]+"."+depDateArr[0].substring(2);
 			// 截取对应时间的html片段
-	    	String ddHtml = StringUtils.substringBetween(myHtml, "<div class=\"day\">Sa, "+depDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+	    	String ddHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sa "+depDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 	    	// 取出当前日期下有几个航班
 			String[] flightArr = StringUtils.substringsBetween(ddHtml,"data-flightid=\"","\"") ;
 			List<OneWayFlightInfo> flightList = new ArrayList<OneWayFlightInfo>();
@@ -293,13 +295,15 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 				// 航班号列表
 				flightDetail.setFlightno(flightNoList);
 				// 价格，该航班上的最低价
-				String priceStr = StringUtils.substringBetween(priceHtml,"<span class=\"rate _json-totalPrice\">","€");
+				String goPriceHtml = StringUtils.substringBetween(priceHtml,"<li class=\"summery _json-ADT\">","</li>");
+				String priceStr = StringUtils.substringBetween(goPriceHtml,"<span class=\"rate _json-totalPrice\">","€");
 				String priceD = priceStr.substring(1,priceStr.length()-1).replace(",", ".");
 				double price = Double.parseDouble(priceD);
 				flightDetail.setPrice(price);
 				// 税
-				String taxStr = StringUtils.substringBetween(priceHtml,"<span class=\"_json-totalPrice\">","€");
-				String taxD = taxStr.substring(0,taxStr.length()-1).replace(",", ".");
+				String goTaxHtml = StringUtils.substringBetween(priceHtml,"<li class=\"taxes _json-taxes\">","</li>");
+				String taxStr = StringUtils.substringBetween(goTaxHtml,"<span class=\"rate _json-totalPrice\">","€");
+				String taxD = taxStr.substring(1,taxStr.length()-1).replace(",", ".");
 				double tax = Double.parseDouble(taxD);
 				flightDetail.setTax(tax);
 				// 货币单位
