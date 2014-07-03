@@ -279,7 +279,7 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 
 	public BookingResult getBookingInfo(FlightSearchParam param) {
 		// https://www.tuifly.com/SearchAndSelect.aspx?culture=en-GB&nextState=select&ADT=1&CHD=0&INF=0&selection=SXFKGS20140712
-		String bookingUrlPre = "www.tuifly.com/SearchAndSelect.aspx";
+		String bookingUrlPre = "https://www.tuifly.com/SearchAndSelect.aspx";
 		BookingResult bookingResult = new BookingResult();
 		BookingInfo bookingInfo = new BookingInfo();
 		bookingInfo.setAction(bookingUrlPre);
