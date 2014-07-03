@@ -6,8 +6,12 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.apache.commons.httpclient.Header;
+import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.lang.StringUtils;
+
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.google.common.collect.Lists;
 import com.qunar.qfwrapper.bean.booking.BookingInfo;
@@ -42,7 +46,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		searchParam.setDep("SXF");
 		searchParam.setArr("KGS");
 		searchParam.setDepDate("2014-07-12");
-		searchParam.setRetDate(" 2014-08-02");
+		searchParam.setRetDate("2014-08-02");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjsairx3001");
 		searchParam.setToken("");
@@ -84,18 +88,28 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		    	headerMap.put(h.getName(), h.getValue());
 			}*/
 		    //System.out.println(Arrays.toString(httpClient.getState().getCookies()));
-			get.setRequestHeader("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-			get.setRequestHeader("Accept-Charset","GBK,utf-8;q=0.7,*;q=0.3");
-			get.setRequestHeader("Accept-Encoding","gzip,deflate,sdch");
-			get.setRequestHeader("Accept-Language","zh-CN,zh;q=0.8");
-			get.setRequestHeader("Cache-Control","max-age=0");
-			get.setRequestHeader("Connection","keep-alive");
-			get.setRequestHeader("Cookie","optimizelyEndUserId=oeu1403851130487r0.45988155249506235; __utma=79925266.1092324384.1403851136.1403851136.1403851136.1; __utmz=79925266.1403851136.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); s_vi=[CS]v1|29D688D1051D06EC-60000146E000E4DA[CE]; s_nr=1403851168408-New; ABTesting=TarifDesignPreselect=C; ASP.NET_SessionId=m2agd3xvhukhxykkl2wjqc2v; AvailabilitySearchData=T3xTWEZ8S0dTfDEyfDIwMTQtMDd8MTB8MjAxNC0wN3wx; loginEvent=1; sID=skysales.tfl-s12; optimizelySegments=%7B%22211157978%22%3A%22false%22%2C%22211934000%22%3A%22none%22%2C%22211989614%22%3A%22gc%22%2C%22211998475%22%3A%22direct%22%7D; optimizelyBuckets=%7B%7D; uzchkcookie=; POPUPCHECK=1404441767466");
-			get.setRequestHeader("Host","www.tuifly.com");
-			get.setRequestHeader("User-Agent","Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.89 Safari/537.1");
-			
-		    httpClient.executeMethod(get);
-		    return get.getResponseBodyAsString();
+			get.setFollowRedirects(false);
+			get.getParams().setContentCharset("utf-8");
+			httpClient.executeMethod(get);
+			if(get.getStatusCode() == HttpStatus.SC_MOVED_TEMPORARILY || get.getStatusCode() == HttpStatus.SC_MOVED_PERMANENTLY){
+				Header location = get.getResponseHeader("Location");
+				String url = "";
+				if(location !=null){
+					url = location.getValue();
+					if(!url.startsWith("http")){
+						url = get.getURI().getScheme() + "://" + get.getURI().getHost() + (get.getURI().getPort()==-1?"":(":"+get.getURI().getPort())) + url;
+					}
+				}else{
+					return "";
+				}
+				String cookie = StringUtils.join(httpClient.getState().getCookies(),"; ");
+				cookieMap.put("cookie", cookie);
+				get = new QFGetMethod(url);
+				httpClient.getState().clearCookies();
+				get.addRequestHeader("Cookie",cookie);
+				httpClient.executeMethod(get);
+				return get.getResponseBodyAsString();
+			}
 		} catch (Exception e) {			
 			e.printStackTrace();
 		} finally{
@@ -108,6 +122,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 
 	public ProcessResultInfo process(String html, FlightSearchParam param) {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		QFHttpClient httpClient = new QFHttpClient(param, false);
 		/* ProcessResultInfo中，
 		 * ret为true时，status可以为：SUCCESS(抓取到机票价格)|NO_RESULT(无结果，没有可卖的机票)
 		 * ret为false时，status可以为:CONNECTION_FAIL|INVALID_DATE|INVALID_AIRLINE|PARSING_FAIL|PARAM_ERROR
@@ -143,9 +158,9 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			String departHtml = StringUtils.substringBetween(html, "<div class=\"flights qDepartureFlight\">", "<div class=\"flights round qReturnFlight\">");
 			// 去程时间格式转化为：05.07.14
 			String[] goDateArr = param.getDepDate().split("-");
-			String goDate = goDateArr[2]+"/"+goDateArr[1]+"/"+goDateArr[0].substring(2);
+			String goDate = goDateArr[2]+"."+goDateArr[1]+"."+goDateArr[0].substring(2);
 			// 截取去程对应html片段
-			String goHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sat "+goDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+			String goHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sa "+goDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 			// 取出当前日期下有几个航班
 			String[] goFlightArr = StringUtils.substringsBetween(goHtml,"data-flightid=\"","\"");
 			// 5个去程
@@ -233,9 +248,9 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
 				// 返程时间格式转化为：26.07.14
 				String[] retDateArr = param.getRetDate().split("-");
-				String retDate = retDateArr[2]+"/"+retDateArr[1]+"/"+retDateArr[0].substring(2);
+				String retDate = retDateArr[2]+"."+retDateArr[1]+"."+retDateArr[0].substring(2);
 				// 截取返程对应html片段
-				String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sat "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+				String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sa "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 				// 取出当前日期下有几个航班
 				String[] retFlightArr = StringUtils.substringsBetween(retHtml,"data-flightid=\"","\"") ;
 				// 3个返程
@@ -252,18 +267,9 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 					// 请求地址
 					String requestUrl = String.format("https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys=%s&uniqueFlightRequestKey=%s",URLEncoder.encode(sellkey,"UTF-8"),URLEncoder.encode(flightid,"UTF-8"));
 					//String requestUrl = "https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys="+sellkey+"&uniqueFlightRequestKey="+flightid;
-					QFHttpClient httpClient = new QFHttpClient(param, false);
 					QFGetMethod getMethod = new QFGetMethod(requestUrl);
-					getMethod.setRequestHeader("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-					getMethod.setRequestHeader("Accept-Charset","GBK,utf-8;q=0.7,*;q=0.3");
-					getMethod.setRequestHeader("Accept-Encoding","gzip,deflate,sdch");
-					getMethod.setRequestHeader("Accept-Language","zh-CN,zh;q=0.8");
-					getMethod.setRequestHeader("Cache-Control","max-age=0");
-					getMethod.setRequestHeader("Connection","keep-alive");
-					getMethod.setRequestHeader("Cookie","optimizelyEndUserId=oeu1403851130487r0.45988155249506235; __utma=79925266.1092324384.1403851136.1403851136.1403851136.1; __utmz=79925266.1403851136.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); s_vi=[CS]v1|29D688D1051D06EC-60000146E000E4DA[CE]; s_nr=1403851168408-New; ABTesting=TarifDesignPreselect=C; ASP.NET_SessionId=m2agd3xvhukhxykkl2wjqc2v; AvailabilitySearchData=T3xTWEZ8S0dTfDEyfDIwMTQtMDd8MTB8MjAxNC0wN3wx; loginEvent=1; sID=skysales.tfl-s12; optimizelySegments=%7B%22211157978%22%3A%22false%22%2C%22211934000%22%3A%22none%22%2C%22211989614%22%3A%22gc%22%2C%22211998475%22%3A%22direct%22%7D; optimizelyBuckets=%7B%7D; uzchkcookie=; POPUPCHECK=1404441767466");
-					getMethod.setRequestHeader("Host","www.tuifly.com");
-					getMethod.setRequestHeader("User-Agent","Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.89 Safari/537.1");
-					
+					httpClient.getState().clearCookies();
+					getMethod.addRequestHeader("Cookie",cookieMap.get("cookie"));
 					httpClient.executeMethod(getMethod);
 					// 返回金额和税的html片段
 					String priceHtml = getMethod.getResponseBodyAsString();
@@ -331,9 +337,9 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
 			// 返程时间格式转化为：26.07.14
 			String[] retDateArr = param.getRetDate().split("-");
-			String retDate = retDateArr[2]+"/"+retDateArr[1]+"/"+retDateArr[0].substring(2);
+			String retDate = retDateArr[2]+"."+retDateArr[1]+"."+retDateArr[0].substring(2);
 			// 截取返程对应html片段
-			String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sat "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+			String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sa "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 			// 取出当前日期下有几个航班
 			String[] retFlightArr = StringUtils.substringsBetween(retHtml,"data-flightid=\"","\"") ;
 			// 3个返程
