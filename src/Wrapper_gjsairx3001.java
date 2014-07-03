@@ -6,10 +6,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.commons.httpclient.Cookie;
+import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.lang.StringUtils;
-
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.google.common.collect.Lists;
 import com.qunar.qfwrapper.bean.booking.BookingInfo;
@@ -25,6 +23,11 @@ import com.qunar.qfwrapper.interfaces.QunarCrawler;
 import com.qunar.qfwrapper.util.QFGetMethod;
 import com.qunar.qfwrapper.util.QFHttpClient;
 
+/**
+ * 途易飞抓取
+ * @author Administrator
+ *
+ */
 public class Wrapper_gjsairx3001 implements QunarCrawler{
 
 	public static Map<String,String> cookieMap = new HashMap<String,String>();
@@ -39,7 +42,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		searchParam.setDep("SXF");
 		searchParam.setArr("KGS");
 		searchParam.setDepDate("2014-07-12");
-		searchParam.setRetDate("2014-08-02");
+		searchParam.setRetDate(" 2014-08-02");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjsairx3001");
 		searchParam.setToken("");
@@ -65,57 +68,33 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		}
 	}
 	
-	public BookingResult getBookingInfo(FlightSearchParam param) {
-		// https://www.tuifly.com/en/search?origin=SXF&destination=KGS&start=2014-07-12&sort=PriceAsc&triptype=oneway&duration=7&adults=1&children=0&infants=0&carrier=DE
-		String bookingUrlPre = "http://www.tuifly.com/en/index.html";
-		BookingResult bookingResult = new BookingResult();
-		
-		BookingInfo bookingInfo = new BookingInfo();
-		bookingInfo.setAction(bookingUrlPre);
-		bookingInfo.setMethod("get");	
-		Map<String, String> map = new LinkedHashMap<String, String>();
-		map.put("origin", param.getDep());
-		map.put("destination", param.getArr());
-		map.put("start", param.getDepDate().replaceAll("-", "/"));
-		map.put("end", param.getRetDate().replaceAll("-", "/"));
-		map.put("sort", "PriceAsc");
-		map.put("triptype", "oneway");
-		map.put("duration", "07");
-		map.put("adults", "1");
-		map.put("children", "0");
-		map.put("infants", "0");
-		map.put("carrier", "DE");
-		bookingInfo.setInputs(map);
-		bookingResult.setData(bookingInfo);
-		bookingResult.setRet(true);
-		return bookingResult;
-	}
-
 	public String getHtml(FlightSearchParam param) {
 		QFGetMethod get = null;	
 		try {	
 			QFHttpClient httpClient = new QFHttpClient(param, false);
+			//对于需要cookie的网站，请自己处理cookie（必须）
+			httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
 			// 请求地址
 			String getUrl = String.format("https://www.tuifly.com/SearchAndSelect.aspx?culture=en-GB&nextState=select&ADT=1&CHD=0&INF=0&selection=%s",
 					param.getDep()+param.getArr()+param.getDepDate().replaceAll("-", "")+param.getRetDate().replaceAll("-", ""));
 			get = new QFGetMethod(getUrl);
-		    httpClient.executeMethod(get);
-		    
-		    /*Header [] headers = get.getResponseHeaders() ;
-	        String cookies = "" ;
-			for(Header h : headers){
-				headerMap.put(h.getName(), h.getValue()) ;
-				if("Cookie".equalsIgnoreCase(h.getName())){
-					cookies += h.getValue() ;
-				}
-			}*/
-		    //Arrays.toString()
 			// 设置cookie
-		    Cookie[] cookieInfo = httpClient.getState().getCookies();
+		    /*Cookie[] cookieInfo = httpClient.getState().getCookies();
 		    for(Cookie h : cookieInfo){
 		    	headerMap.put(h.getName(), h.getValue());
-			}
+			}*/
 		    //System.out.println(Arrays.toString(httpClient.getState().getCookies()));
+			get.setRequestHeader("Accept","text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+			get.setRequestHeader("Accept-Charset","GBK,utf-8;q=0.7,*;q=0.3");
+			get.setRequestHeader("Accept-Encoding","gzip,deflate,sdch");
+			get.setRequestHeader("Accept-Language","zh-CN,zh;q=0.8");
+			get.setRequestHeader("Cache-Control","max-age=0");
+			get.setRequestHeader("Connection","keep-alive");
+			get.setRequestHeader("Cookie","optimizelyEndUserId=oeu1403851130487r0.45988155249506235; __utma=79925266.1092324384.1403851136.1403851136.1403851136.1; __utmz=79925266.1403851136.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); s_vi=[CS]v1|29D688D1051D06EC-60000146E000E4DA[CE]; s_nr=1403851168408-New; ABTesting=TarifDesignPreselect=C; ASP.NET_SessionId=m2agd3xvhukhxykkl2wjqc2v; AvailabilitySearchData=T3xTWEZ8S0dTfDEyfDIwMTQtMDd8MTB8MjAxNC0wN3wx; loginEvent=1; sID=skysales.tfl-s12; optimizelySegments=%7B%22211157978%22%3A%22false%22%2C%22211934000%22%3A%22none%22%2C%22211989614%22%3A%22gc%22%2C%22211998475%22%3A%22direct%22%7D; optimizelyBuckets=%7B%7D; uzchkcookie=; POPUPCHECK=1404441767466");
+			get.setRequestHeader("Host","www.tuifly.com");
+			get.setRequestHeader("User-Agent","Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.89 Safari/537.1");
+			
+		    httpClient.executeMethod(get);
 		    return get.getResponseBodyAsString();
 		} catch (Exception e) {			
 			e.printStackTrace();
@@ -128,21 +107,24 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 	}
 
 	public ProcessResultInfo process(String html, FlightSearchParam param) {
-		String htmlStr = html;
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		/* ProcessResultInfo中，
 		 * ret为true时，status可以为：SUCCESS(抓取到机票价格)|NO_RESULT(无结果，没有可卖的机票)
 		 * ret为false时，status可以为:CONNECTION_FAIL|INVALID_DATE|INVALID_AIRLINE|PARSING_FAIL|PARAM_ERROR
 		 */
 		ProcessResultInfo result = new ProcessResultInfo();
-		if ("Exception".equals(htmlStr)) {	
+		if ("Exception".equals(html)) {	
 			result.setRet(false);
 			result.setStatus(Constants.CONNECTION_FAIL);
 			return result;
 		}
 		//需要有明显的提示语句，才能判断是否INVALID_DATE|INVALID_AIRLINE|NO_RESULT
-		if (htmlStr.contains("Es tut uns Leid, in dem gewählten Zeitraum sind leider keine Flüge verfügbar bzw. ausgebucht. Bitte wählen Sie ein anderes Datum oder einen anderen Startflughafen.")) {
-			// Sorry, no flights available. Please select another date or station and try again.
+		if (html.contains("Es tut uns Leid, in dem gewählten Zeitraum sind leider keine Flüge verfügbar bzw. ausgebucht. Bitte wählen Sie ein anderes Datum oder einen anderen Startflughafen.")) {
+			result.setRet(false);
+			result.setStatus(Constants.INVALID_DATE);
+			return result;
+		}
+		if (html.contains("Sorry, no flights available. Please select another date or station and try again.")) {
 			result.setRet(false);
 			result.setStatus(Constants.INVALID_DATE);
 			return result;
@@ -158,12 +140,12 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			Map<String,Object> retFlightMap = new HashMap<String,Object>();
 			/*****获取去程信息*****/
 			// 去程html片段
-			String departHtml = StringUtils.substringBetween(htmlStr, "<div class=\"flights qDepartureFlight\">", "<div class=\"flights round qReturnFlight\">");
+			String departHtml = StringUtils.substringBetween(html, "<div class=\"flights qDepartureFlight\">", "<div class=\"flights round qReturnFlight\">");
 			// 去程时间格式转化为：05.07.14
 			String[] goDateArr = param.getDepDate().split("-");
-			String goDate = goDateArr[2]+"."+goDateArr[1]+"."+goDateArr[0].substring(2);
+			String goDate = goDateArr[2]+"/"+goDateArr[1]+"/"+goDateArr[0].substring(2);
 			// 截取去程对应html片段
-			String goHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sa "+goDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+			String goHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sat "+goDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 			// 取出当前日期下有几个航班
 			String[] goFlightArr = StringUtils.substringsBetween(goHtml,"data-flightid=\"","\"");
 			// 5个去程
@@ -247,14 +229,13 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				// 去程请求获取金额和税
 				String goSellkey = StringUtils.substringBetween(goTimeHtml,"data-sellkey=\"","\"");
 				String goFlightid = StringUtils.substringBetween(goTimeHtml,"data-flightid=\"","\"");
-				
 				// 返程html片段
-				String returnHtml = StringUtils.substringBetween(htmlStr, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
+				String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
 				// 返程时间格式转化为：26.07.14
 				String[] retDateArr = param.getRetDate().split("-");
-				String retDate = retDateArr[2]+"."+retDateArr[1]+"."+retDateArr[0].substring(2);
+				String retDate = retDateArr[2]+"/"+retDateArr[1]+"/"+retDateArr[0].substring(2);
 				// 截取返程对应html片段
-				String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sa "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+				String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sat "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 				// 取出当前日期下有几个航班
 				String[] retFlightArr = StringUtils.substringsBetween(retHtml,"data-flightid=\"","\"") ;
 				// 3个返程
@@ -279,9 +260,10 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 					getMethod.setRequestHeader("Accept-Language","zh-CN,zh;q=0.8");
 					getMethod.setRequestHeader("Cache-Control","max-age=0");
 					getMethod.setRequestHeader("Connection","keep-alive");
-					getMethod.setRequestHeader("Cookie","optimizelyEndUserId=oeu1401846454002r0.6400896897539496; ABTesting=TarifDesignPreselect=B; ASP.NET_SessionId="+headerMap.get("ASP.NET_SessionId")+"; POPUPCHECK=1403927102495; s_cc=true; __utma=79925266.1273851147.1401846456.1403840636.1403847999.12; __utmb=79925266.5.10.1403847999; __utmc=79925266; __utmz=79925266.1401846456.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmv=79925266.|1=searcher=searched=1^5=flight=searched=1; s_vi=[CS]v1|29C73D61851D0DF9-60000107C00259F2[CE]; notepadCount=0; s_nr=1403850289326-Repeat; undefined_s=First%20Visit; s_sq=tuifly-produktion-en%3D%2526pid%253Dindex.html%2526pidt%253D1%2526oid%253DFIND%252520FLIGHTS%2526oidt%253D3%2526ot%253DSUBMIT; user-profile=%7B%22customer%3Asearch%3Ahistory%22%3A%5B%7B%22oneway%22%3Afalse%2C%22airports%22%3A%7B%22origin%22%3A%5B%22HAM%22%5D%2C%22destination%22%3A%5B%22ATH%22%5D%7D%2C%22dates%22%3A%7B%22duration%22%3Anull%2C%22start%22%3A%222014-07-19%22%2C%22end%22%3A%222014-07-26%22%7D%2C%22passengers%22%3A%7B%22adults%22%3A1%2C%22children%22%3A0%2C%22infants%22%3A0%7D%7D%2C%7B%22oneway%22%3Afalse%2C%22airports%22%3A%7B%22origin%22%3A%5B%22HAM%22%5D%2C%22destination%22%3A%5B%22ATH%22%5D%7D%2C%22dates%22%3A%7B%22duration%22%3Anull%2C%22start%22%3A%222014-07-19%22%2C%22end%22%3A%222014-07-26%22%7D%2C%22passengers%22%3A%7B%22adults%22%3A1%2C%22children%22%3A0%2C%22infants%22%3A0%7D%7D%5D%7D; AvailabilitySearchData=UnxIQU18QVRIfDE5fDIwMTQtMDd8MjZ8MjAxNC0wN3wx; loginEvent=1; optimizelySegments=%7B%22211157978%22%3A%22false%22%2C%22211934000%22%3A%22none%22%2C%22211989614%22%3A%22gc%22%2C%22211998475%22%3A%22direct%22%7D; optimizelyBuckets=%7B%7D; uzchkcookie=; sID=skysales.tfl-s12");
+					getMethod.setRequestHeader("Cookie","optimizelyEndUserId=oeu1403851130487r0.45988155249506235; __utma=79925266.1092324384.1403851136.1403851136.1403851136.1; __utmz=79925266.1403851136.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); s_vi=[CS]v1|29D688D1051D06EC-60000146E000E4DA[CE]; s_nr=1403851168408-New; ABTesting=TarifDesignPreselect=C; ASP.NET_SessionId=m2agd3xvhukhxykkl2wjqc2v; AvailabilitySearchData=T3xTWEZ8S0dTfDEyfDIwMTQtMDd8MTB8MjAxNC0wN3wx; loginEvent=1; sID=skysales.tfl-s12; optimizelySegments=%7B%22211157978%22%3A%22false%22%2C%22211934000%22%3A%22none%22%2C%22211989614%22%3A%22gc%22%2C%22211998475%22%3A%22direct%22%7D; optimizelyBuckets=%7B%7D; uzchkcookie=; POPUPCHECK=1404441767466");
 					getMethod.setRequestHeader("Host","www.tuifly.com");
 					getMethod.setRequestHeader("User-Agent","Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/21.0.1180.89 Safari/537.1");
+					
 					httpClient.executeMethod(getMethod);
 					// 返回金额和税的html片段
 					String priceHtml = getMethod.getResponseBodyAsString();
@@ -346,12 +328,12 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				
 			/*****获取返程信息*****/
 			// 返程html片段
-			String returnHtml = StringUtils.substringBetween(htmlStr, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
+			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
 			// 返程时间格式转化为：26.07.14
 			String[] retDateArr = param.getRetDate().split("-");
-			String retDate = retDateArr[2]+"."+retDateArr[1]+"."+retDateArr[0].substring(2);
+			String retDate = retDateArr[2]+"/"+retDateArr[1]+"/"+retDateArr[0].substring(2);
 			// 截取返程对应html片段
-			String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sa "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+			String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sat "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 			// 取出当前日期下有几个航班
 			String[] retFlightArr = StringUtils.substringsBetween(retHtml,"data-flightid=\"","\"") ;
 			// 3个返程
@@ -524,5 +506,25 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		BigDecimal bd1 = new BigDecimal(Double.toString(d1));
 		BigDecimal bd2 = new BigDecimal(Double.toString(d2));
 		return bd1.add(bd2).doubleValue();
+	}
+	
+	public BookingResult getBookingInfo(FlightSearchParam param) {
+		// https://www.tuifly.com/SearchAndSelect.aspx?culture=en-GB&nextState=select&ADT=1&CHD=0&INF=0&selection=SXFKGS2014071220140802
+		String bookingUrlPre = "http://www.tuifly.com/en/search";
+		BookingResult bookingResult = new BookingResult();
+		BookingInfo bookingInfo = new BookingInfo();
+		bookingInfo.setAction(bookingUrlPre);
+		bookingInfo.setMethod("get");	
+		Map<String, String> map = new LinkedHashMap<String, String>();
+		map.put("culture", "en-GB");
+		map.put("nextState", "select");
+		map.put("ADT", "1");
+		map.put("CHD", "0");
+		map.put("INF", "0");
+		map.put("selection", param.getDep()+param.getArr()+param.getDepDate().replaceAll("-", "")+param.getRetDate().replaceAll("-", ""));
+		bookingInfo.setInputs(map);
+		bookingResult.setData(bookingInfo);
+		bookingResult.setRet(true);
+		return bookingResult;
 	}
 }
