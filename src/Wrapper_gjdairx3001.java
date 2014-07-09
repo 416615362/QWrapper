@@ -1,16 +1,13 @@
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.lang.StringUtils;
-
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.qunar.qfwrapper.bean.booking.BookingInfo;
 import com.qunar.qfwrapper.bean.booking.BookingResult;
@@ -109,7 +106,6 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 
 	public ProcessResultInfo process(String html, FlightSearchParam param) {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-		QFHttpClient httpClient = new QFHttpClient(param, false);
 		/* ProcessResultInfo中，
 		 * ret为true时，status可以为：SUCCESS(抓取到机票价格)|NO_RESULT(无结果，没有可卖的机票)
 		 * ret为false时，status可以为:CONNECTION_FAIL|INVALID_DATE|INVALID_AIRLINE|PARSING_FAIL|PARAM_ERROR
@@ -223,38 +219,16 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 				/************添加FlightDetail信息****************/
 				// 出发时间
 				flightDetail.setDepdate(sdf.parse(depTime));
-				// 请求获取金额和税
-				String sellkey = StringUtils.substringBetween(goTimeHtml,"data-sellkey=\"","\"");
-				String flightid = StringUtils.substringBetween(goTimeHtml,"data-flightid=\"","\"");
-				String encodeUrl = String.format("https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys=%s&uniqueFlightRequestKey=%s",URLEncoder.encode(sellkey,"UTF-8"),flightid);
-				// 请求地址
-				//String pHref = "https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys=0~O~~X3~ODE~5100~~0~2~~X|DE~6628~ ~~SXF~07/12/2014 15:10~KGS~07/12/2014 19:10~~&uniqueFlightRequestKey=1.3.1";
-				QFGetMethod getMethod = new QFGetMethod(encodeUrl);
-				httpClient.getState().clearCookies();
-				getMethod.addRequestHeader("Cookie",cookieMap.get("cookie"));
-				httpClient.executeMethod(getMethod);
-				// 返回金额和税的html片段
-				String priceHtml = getMethod.getResponseBodyAsString();
-				if(null != getMethod){
-					getMethod.releaseConnection();
-				}
 				// 航班号列表
 				flightDetail.setFlightno(flightNoList);
 				// 价格，该航班上的最低价
-				String goPriceHtml = StringUtils.substringBetween(priceHtml,"<li class=\"summery _json-ADT\">","</li>");
-				String priceStr = StringUtils.substringBetween(goPriceHtml,"<span class=\"rate _json-totalPrice\">","€");
-				String priceD = priceStr.substring(1,priceStr.length()-1).replace(",", ".");
-				double price = Double.parseDouble(priceD);
-				flightDetail.setPrice(price);
+				String goPriceAndTaxStr = StringUtils.substringBetween(goTimeHtml,"<span class=\"qBruttoPriceAdult\">","</span>");
+				double goPriceTax = Double.parseDouble(goPriceAndTaxStr.replace(",", "."));
+				flightDetail.setPrice(goPriceTax);
 				// 税
-				String goTaxHtml = StringUtils.substringBetween(priceHtml,"<li class=\"taxes _json-taxes\">","</li>");
-				String taxStr = StringUtils.substringBetween(goTaxHtml,"<span class=\"rate _json-totalPrice\">","€");
-				String taxD = taxStr.substring(1,taxStr.length()-1).replace(",", ".");
-				double tax = Double.parseDouble(taxD);
-				flightDetail.setTax(tax);
+				flightDetail.setTax(0);
 				// 货币单位
-				String cur = StringUtils.substringBetween(priceHtml,"currency=\"","\"");
-				flightDetail.setMonetaryunit(cur);
+				flightDetail.setMonetaryunit("CUR");
 				// 出发三字码
 				flightDetail.setDepcity(param.getDep());
 				// 到达三字码
