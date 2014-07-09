@@ -38,9 +38,9 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		//SXF-KGS 2014-07-12
 		//HAM-ATH 2014-07-19
 		//BRI-ZRH 2014-09-20
-		searchParam.setDep("HAM");
-		searchParam.setArr("ATH");
-		searchParam.setDepDate("2014-07-19");
+		searchParam.setDep("DUS");
+		searchParam.setArr("MAD");
+		searchParam.setDepDate("2014-07-15");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjdairx3001");
 		searchParam.setToken("");
@@ -133,12 +133,12 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		}
 		try {
 			// 去程html片段
-			String departHtml = StringUtils.substringBetween(html, "<div class=\"flights qDepartureFlight\">", "<div class=\"noFlights qNoResultsForFilter hidden\">");
-			// 转换起飞时间格式如：05.07.14
-			String[] depDateArr = param.getDepDate().split("-");
-	    	String depDate = depDateArr[2]+"."+depDateArr[1]+"."+depDateArr[0].substring(2);
+ 			String departHtml = StringUtils.substringBetween(html, "<div class=\"flights qDepartureFlight\">", "<div class=\"noFlights qNoResultsForFilter hidden\">");
+			// 起程日期
+ 			String inputDateHtml = StringUtils.substringBetween(html,"<label class=\"input date from js-date-container\">","</label>");
+			String depDate = StringUtils.substringBetween(inputDateHtml,"value=\"","\"").replace(",", "");
 			// 截取对应时间的html片段
-	    	String ddHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sa "+depDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+	    	String ddHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">"+depDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 	    	// 取出当前日期下有几个航班
 			String[] flightArr = StringUtils.substringsBetween(ddHtml,"data-flightid=\"","\"") ;
 			List<OneWayFlightInfo> flightList = new ArrayList<OneWayFlightInfo>();
@@ -150,17 +150,17 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 				List<FlightSegement> segs = new ArrayList<FlightSegement>();
 				List<String> flightNoList = new ArrayList<String>();
 				// 取对应时间的数据
-				String subHtml = StringUtils.substringBetween(ddHtml,"id=\"flight_"+flightArr[i]+"\"","<div class=\"qContent\"></div>");
-				String articlenumber = StringUtils.substringBetween(subHtml,"data-articlenumber=\"","\"");
+				String goTimeHtml = StringUtils.substringBetween(ddHtml,"id=\"flight_"+flightArr[i]+"\"","<div class=\"qContent\"></div>");
+				String articlenumber = StringUtils.substringBetween(goTimeHtml,"data-articlenumber=\"","\"");
 				// 出发时间
 				String depTime = articlenumber.split("_")[2];
 				// 截取中转站信息
-				String[] zzzArr = StringUtils.substringsBetween(subHtml,"<span class=\"clock\">","</span>");
+				String[] zzzArr = StringUtils.substringsBetween(goTimeHtml,"<span class=\"clock\">","</span>");
 				if(zzzArr != null && zzzArr.length > 1){
 					for(int j=0;j<zzzArr.length;j++){
 						FlightSegement seg = new FlightSegement();
 						// 截取航班详细信息
-						String[] fightDetailsHtml = StringUtils.substringsBetween(subHtml,"<div class=\"fightDetailsStopOver\">","</div>");
+						String[] fightDetailsHtml = StringUtils.substringsBetween(goTimeHtml,"<div class=\"fightDetailsStopOver\">","</div>");
 						// 机场内容
 						String airportHtml = StringUtils.substringAfterLast(fightDetailsHtml[j], "<div class=\"flight\">");
 						// 出发机场三字码
@@ -168,7 +168,7 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 						// 到达机场三字码
 						String dst = airportHtml.substring(airportHtml.lastIndexOf("(")+1, airportHtml.lastIndexOf(")"));
 						// 航班号
-						String airportArea = StringUtils.substringBetween(subHtml,"data-content=\"","\"");
+						String airportArea = StringUtils.substringBetween(goTimeHtml,"data-content=\"","\"");
 						String[] flightHaoArr = StringUtils.substringsBetween(fightDetailsHtml[j],"data-content=\""+airportArea+"\">","</span>");
 						String fliNo = String.valueOf(flightHaoArr[0]).replaceAll("[\\s\"]", "");
 						//System.out.println(String.valueOf(flightHaoArr[0]).replaceAll(String.valueOf((char)160), ""));
@@ -195,13 +195,13 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 				else{
 					FlightSegement seg = new FlightSegement();
 					// 出发机场三字码
-					String org = StringUtils.substringBetween(subHtml,"data-origincode=\"","\"");
+					String org = StringUtils.substringBetween(goTimeHtml,"data-origincode=\"","\"");
 					// 到达机场三字码
-					String dst = StringUtils.substringBetween(subHtml,"data-destinationcode=\"","\"");
+					String dst = StringUtils.substringBetween(goTimeHtml,"data-destinationcode=\"","\"");
 					// 出发到达片段
-					String outInHtml = StringUtils.substringBetween(subHtml,"<li class=\"clock\">","</li>");
+					String outInHtml = StringUtils.substringBetween(goTimeHtml,"<li class=\"clock\">","</li>");
 					// 航班号
-					String flightNo = StringUtils.substringBetween(subHtml,"data-carriercode=\"","\"")+StringUtils.substringBetween(subHtml,"data-flightnumber=\"","\"");
+					String flightNo = StringUtils.substringBetween(goTimeHtml,"data-carriercode=\"","\"")+StringUtils.substringBetween(goTimeHtml,"data-flightnumber=\"","\"");
 					flightNoList.add(flightNo);
 					/**************添加FlightSegement信息****************/
 					// 航班号列表
@@ -224,8 +224,8 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 				// 出发时间
 				flightDetail.setDepdate(sdf.parse(depTime));
 				// 请求获取金额和税
-				String sellkey = StringUtils.substringBetween(subHtml,"data-sellkey=\"","\"");
-				String flightid = StringUtils.substringBetween(subHtml,"data-flightid=\"","\"");
+				String sellkey = StringUtils.substringBetween(goTimeHtml,"data-sellkey=\"","\"");
+				String flightid = StringUtils.substringBetween(goTimeHtml,"data-flightid=\"","\"");
 				String encodeUrl = String.format("https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys=%s&uniqueFlightRequestKey=%s",URLEncoder.encode(sellkey,"UTF-8"),flightid);
 				// 请求地址
 				//String pHref = "https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys=0~O~~X3~ODE~5100~~0~2~~X|DE~6628~ ~~SXF~07/12/2014 15:10~KGS~07/12/2014 19:10~~&uniqueFlightRequestKey=1.3.1";

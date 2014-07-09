@@ -43,9 +43,9 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 		//SXF-KGS 2014-07-12 2014-08-02
 		//HAM-ATH 2014-07-19 2014-07-26
 		//BRI-ZRH 2014-09-20 2014-09-27
-		searchParam.setDep("SXF");
-		searchParam.setArr("KGS");
-		searchParam.setDepDate("2014-07-12");
+		searchParam.setDep("DUS");
+		searchParam.setArr("MAD");
+		searchParam.setDepDate("2014-07-15");
 		searchParam.setRetDate("2014-08-02");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjsairx3001");
@@ -123,6 +123,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 	public ProcessResultInfo process(String html, FlightSearchParam param) {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 		QFHttpClient httpClient = new QFHttpClient(param, false);
+		QFGetMethod getMethod = null;
 		/* ProcessResultInfo中，
 		 * ret为true时，status可以为：SUCCESS(抓取到机票价格)|NO_RESULT(无结果，没有可卖的机票)
 		 * ret为false时，status可以为:CONNECTION_FAIL|INVALID_DATE|INVALID_AIRLINE|PARSING_FAIL|PARAM_ERROR
@@ -149,21 +150,17 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			List<OneWayFlightInfo> goflightList = new ArrayList<OneWayFlightInfo>(); // 去程具体航班信息
 			List<OneWayFlightInfo> retflightList = new ArrayList<OneWayFlightInfo>(); // 返程具体航班信息
 			
-			// 存储去程航班金额信息
-			Map<String,Object> goFlightMap = new HashMap<String,Object>();
-			// 存储返程航班金额信息
-			Map<String,Object> retFlightMap = new HashMap<String,Object>();
 			/*****获取去程信息*****/
 			// 去程html片段
 			String departHtml = StringUtils.substringBetween(html, "<div class=\"flights qDepartureFlight\">", "<div class=\"flights round qReturnFlight\">");
-			// 去程时间格式转化为：05.07.14
-			String[] goDateArr = param.getDepDate().split("-");
-			String goDate = goDateArr[2]+"."+goDateArr[1]+"."+goDateArr[0].substring(2);
+			// 去程日期
+ 			String goDateHtml = StringUtils.substringBetween(html,"<label class=\"input date from js-date-container\">","</label>");
+			String goDate = StringUtils.substringBetween(goDateHtml,"value=\"","\"").replace(",", "");
 			// 截取去程对应html片段
-			String goHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">Sa "+goDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+			String goHtml = StringUtils.substringBetween(departHtml, "<div class=\"day\">"+goDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 			// 取出当前日期下有几个航班
 			String[] goFlightArr = StringUtils.substringsBetween(goHtml,"data-flightid=\"","\"");
-			// 5个去程
+			// 循环去程
 			for(int i=0;i<goFlightArr.length;i++){
 				// 航班信息
 				OneWayFlightInfo baseFlight = new OneWayFlightInfo();
@@ -175,13 +172,15 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				String articlenumber = StringUtils.substringBetween(goTimeHtml,"data-articlenumber=\"","\"");
 				// 去程出发时间
 				String depTime = articlenumber.split("_")[2];
+				// 去程中转站html
+				String goFreightHtml = StringUtils.substringBetween(goTimeHtml,"<div class=\"cont-taxandfee-flight flightdetails qFlightDetails qTarifChoices\">","<div class=\"flighterror qFlightError resetStyles\">");
 				// 截取去程中转站信息
-				String[] goZzzArr = StringUtils.substringsBetween(goTimeHtml,"<span class=\"clock\">","</span>");
+				String[] goZzzArr = StringUtils.substringsBetween(goFreightHtml,"<span class=\"clock\">","</span>");
 				if(goZzzArr != null){
 					for(int j=0;j<goZzzArr.length;j++){
 						FlightSegement goSeg = new FlightSegement();
 						// 截取航班详细信息
-						String[] fightDetailsHtml = StringUtils.substringsBetween(goTimeHtml,"<div class=\"fightDetailsStopOver\">","</div>");
+						String[] fightDetailsHtml = StringUtils.substringsBetween(goFreightHtml,"<div class=\"fightDetailsStopOver\">","</div>");
 						// 机场内容
 						String airportHtml = StringUtils.substringAfterLast(fightDetailsHtml[j], "<div class=\"flight\">");
 						// 出发机场三字码
@@ -189,7 +188,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 						// 到达机场三字码
 						String dst = airportHtml.substring(airportHtml.lastIndexOf("(")+1, airportHtml.lastIndexOf(")"));
 						// 航班号
-						String airportArea = StringUtils.substringBetween(goTimeHtml,"data-content=\"","\"");
+						String airportArea = StringUtils.substringBetween(goFreightHtml,"data-content=\"","\"");
 						String[] flightHaoArr = StringUtils.substringsBetween(fightDetailsHtml[j],"data-content=\""+airportArea+"\">","</span>");
 						String fliNo = String.valueOf(flightHaoArr[0]).replaceAll("[\\s\"]", "");
 						flightNoList.add(fliNo.substring(0,2)+fliNo.substring(3));
@@ -240,83 +239,17 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 					goSeg.setArrtime(outInHtml.substring(outInHtml.indexOf("-")+1));
 					segs.add(goSeg);
 				}
-				
-				// 去程请求获取金额和税
-				String goSellkey = StringUtils.substringBetween(goTimeHtml,"data-sellkey=\"","\"");
-				String goFlightid = StringUtils.substringBetween(goTimeHtml,"data-flightid=\"","\"");
-				// 返程html片段
-				String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
-				// 返程时间格式转化为：26.07.14
-				String[] retDateArr = param.getRetDate().split("-");
-				String retDate = retDateArr[2]+"."+retDateArr[1]+"."+retDateArr[0].substring(2);
-				// 截取返程对应html片段
-				String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sa "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
-				// 取出当前日期下有几个航班
-				String[] retFlightArr = StringUtils.substringsBetween(retHtml,"data-flightid=\"","\"") ;
-				// 3个返程
-				for(int j=0;j<retFlightArr.length;j++){
-					// 取去程对应时间的数据
-					String retrunTimeHtml = StringUtils.substringBetween(retHtml,"id=\"flight_"+retFlightArr[j]+"\"","<div class=\"qContent\"></div>");
-					// 返程请求获取金额和税
-					String retSellkey = StringUtils.substringBetween(retrunTimeHtml,"data-sellkey=\"","\"");
-					String retFlightid = StringUtils.substringBetween(retrunTimeHtml,"data-flightid=\"","\"");
-					// 拼接的请求参数
-					String sellkey = goSellkey+","+retSellkey;
-					String flightid = goFlightid+"::"+retFlightid;
-					/*********第二次请求*************/
-					// 请求地址
-					String requestUrl = String.format("https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys=%s&uniqueFlightRequestKey=%s",URLEncoder.encode(sellkey,"UTF-8"),URLEncoder.encode(flightid,"UTF-8"));
-					//String requestUrl = "https://www.tuifly.com/TaxAndFeeInclusiveDisplay-resource.aspx?flightKeys="+sellkey+"&uniqueFlightRequestKey="+flightid;
-					QFGetMethod getMethod = new QFGetMethod(requestUrl);
-					httpClient.getState().clearCookies();
-					getMethod.addRequestHeader("Cookie",cookieMap.get("cookie"));
-					httpClient.executeMethod(getMethod);
-					// 返回金额和税的html片段
-					String priceHtml = getMethod.getResponseBodyAsString();
-					if(null != getMethod){
-						getMethod.releaseConnection();
-					}
-					// 获取去程金额html
-					String journey1Html = StringUtils.substringBetween(priceHtml,"class=\"SMILE-Tarif journey1 _json-outbound\"","</ul>");
-					// 去程价格
-					String goPriceHtml = StringUtils.substringBetween(journey1Html,"<li class=\"summery _json-ADT\">","</li>");
-					String goPriceStr = StringUtils.substringBetween(goPriceHtml,"<span class=\"rate _json-totalPrice\">","€");
-					String goPriceD = goPriceStr.substring(1,goPriceStr.length()-1).replace(",", ".");
-					// 去程税
-					String goTaxHtml = StringUtils.substringBetween(journey1Html,"<li class=\"taxes _json-taxes\">","</li>");
-					String goTaxStr = StringUtils.substringBetween(goTaxHtml,"<span class=\"rate _json-totalPrice\">","€");
-					String goTaxD = goTaxStr.substring(1,goTaxStr.length()-1).replace(",", ".");
-					// 货币单位
-					String cur = StringUtils.substringBetween(journey1Html,"currency=\"","\"");
-					// 存储去程金额，税，币种
-					goFlightMap.put(goFlightid, goPriceD+","+goTaxD+","+cur);
-					
-					// 获取返程金额html
-					String journey2Html = StringUtils.substringBetween(priceHtml,"class=\"SMILE-Tarif journey2 _json-inbound\"","</ul>");
-					// 返程价格
-					String retPriceHtml = StringUtils.substringBetween(journey2Html,"<li class=\"summery _json-ADT\">","</li>");
-					String retPriceStr = StringUtils.substringBetween(retPriceHtml,"<span class=\"rate _json-totalPrice\">","€");
-					String retPriceD = retPriceStr.substring(1,retPriceStr.length()-1).replace(",", ".");
-					// 返程税
-					String retTaxHtml = StringUtils.substringBetween(journey2Html,"<li class=\"taxes _json-taxes\">","</li>");
-					String retTaxStr = StringUtils.substringBetween(retTaxHtml,"<span class=\"rate _json-totalPrice\">","€");
-					String retTaxD = retTaxStr.substring(1,retTaxStr.length()-1).replace(",", ".");
-					double retTax = Double.parseDouble(retTaxD);
-					// 存储返程金额，税，币种
-					retFlightMap.put(retFlightid, retPriceD+","+retTax+","+cur);
-				}
-				
 				/************添加去程FlightDetail信息****************/
 				// 出发时间
 				flightDetail.setDepdate(sdf.parse(depTime));
-				// 去程数组
-				String[] flightids = String.valueOf(goFlightMap.get(goFlightid)).split(",");
-				// 去程金额
-				flightDetail.setPrice(Double.parseDouble(flightids[0]));
+				// 去程含税金额
+				String goPriceAndTaxStr = StringUtils.substringBetween(goTimeHtml,"<span class=\"qBruttoPriceAdult\">","</span>");
+				double goPriceTax = Double.parseDouble(goPriceAndTaxStr.replace(",", "."));
+				flightDetail.setPrice(goPriceTax);
 				// 去程税
-				flightDetail.setTax(Double.parseDouble(flightids[1]));
+				flightDetail.setTax(0);
 				// 去程币种
-				flightDetail.setMonetaryunit(flightids[2]);
+				flightDetail.setMonetaryunit("EUR");
 				// 航班号列表
 				flightDetail.setFlightno(flightNoList);
 				// 出发三字码
@@ -335,14 +268,14 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			/*****获取返程信息*****/
 			// 返程html片段
 			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
-			// 返程时间格式转化为：26.07.14
-			String[] retDateArr = param.getRetDate().split("-");
-			String retDate = retDateArr[2]+"."+retDateArr[1]+"."+retDateArr[0].substring(2);
+			// 返程日期
+			String retDateHtml = StringUtils.substringBetween(html,"<label class=\"input date to perspective js-date-container\">","</label>");
+			String retDate = StringUtils.substringBetween(retDateHtml,"value=\"","\"").replace(",", "");
 			// 截取返程对应html片段
-			String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">Sa "+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
+			String retHtml = StringUtils.substringBetween(returnHtml, "<div class=\"day\">"+retDate+"</div>", "<div class=\"flightsOfOneDay qFlightsOfOneDay\">");
 			// 取出当前日期下有几个航班
 			String[] retFlightArr = StringUtils.substringsBetween(retHtml,"data-flightid=\"","\"") ;
-			// 3个返程
+			// 循环返程
 			for(int i=0;i<retFlightArr.length;i++){
 				// 航班信息
 				OneWayFlightInfo baseFlight = new OneWayFlightInfo();
@@ -354,13 +287,15 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				String articlenumber = StringUtils.substringBetween(retrunTimeHtml,"data-articlenumber=\"","\"");
 				// 返程出发时间
 				String retTime = articlenumber.split("_")[2];
+				// 返程中转站html
+				String retFreightHtml = StringUtils.substringBetween(retrunTimeHtml,"<div class=\"cont-taxandfee-flight flightdetails qFlightDetails qTarifChoices\">","<div class=\"flighterror qFlightError resetStyles\">");
 				// 截取返程中转站信息
-				String[] returnZzzArr = StringUtils.substringsBetween(retrunTimeHtml,"<span class=\"clock\">","</span>");
+				String[] returnZzzArr = StringUtils.substringsBetween(retFreightHtml,"<span class=\"clock\">","</span>");
 				if(returnZzzArr != null){
 					for(int j=0;j<returnZzzArr.length;j++){
 						FlightSegement returnSeg = new FlightSegement();
 						// 截取航班详细信息
-						String[] fightDetailsHtml = StringUtils.substringsBetween(retrunTimeHtml,"<div class=\"fightDetailsStopOver\">","</div>");
+						String[] fightDetailsHtml = StringUtils.substringsBetween(retFreightHtml,"<div class=\"fightDetailsStopOver\">","</div>");
 						// 机场内容
 						String airportHtml = StringUtils.substringAfterLast(fightDetailsHtml[j], "<div class=\"flight\">");
 						// 出发机场三字码
@@ -368,7 +303,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 						// 到达机场三字码
 						String dst = airportHtml.substring(airportHtml.lastIndexOf("(")+1, airportHtml.lastIndexOf(")"));
 						// 航班号
-						String airportArea = StringUtils.substringBetween(retrunTimeHtml,"data-content=\"","\"");
+						String airportArea = StringUtils.substringBetween(retFreightHtml,"data-content=\"","\"");
 						String[] flightHaoArr = StringUtils.substringsBetween(fightDetailsHtml[j],"data-content=\""+airportArea+"\">","</span>");
 						String fliNo = String.valueOf(flightHaoArr[0]).replaceAll("[\\s\"]", "");
 						flightNoList.add(fliNo.substring(0,2)+fliNo.substring(3));
@@ -422,16 +357,14 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				/************添加返程FlightDetail信息****************/
 				// 出发时间
 				flightDetail.setDepdate(sdf.parse(retTime));
-				// 请求获取金额和税
-				String flightid = StringUtils.substringBetween(retrunTimeHtml,"data-flightid=\"","\"");
-				// 返程数组
-				String[] flightids = String.valueOf(retFlightMap.get(flightid)).split(",");
-				// 去程金额
-				flightDetail.setPrice(Double.parseDouble(flightids[0]));
+				// 返程含税金额
+				String retPriceAndTaxStr = StringUtils.substringBetween(retrunTimeHtml,"<span class=\"qBruttoPriceAdult\">","</span>");
+				double retPriceTax = Double.parseDouble(retPriceAndTaxStr.replace(",", "."));
+				flightDetail.setPrice(retPriceTax);
 				// 去程税
-				flightDetail.setTax(Double.parseDouble(flightids[1]));
+				flightDetail.setTax(0);
 				// 去程币种
-				flightDetail.setMonetaryunit(flightids[2]);
+				flightDetail.setMonetaryunit("EUR");
 				// 航班号列表
 				flightDetail.setFlightno(flightNoList);
 				// 出发三字码
@@ -459,9 +392,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 						List<FlightSegement> reSegs = retflightList.get(j).getInfo();
 						FlightDetail reDetail = retflightList.get(j).getDetail();
 
-						FlightDetail goreDetail = new FlightDetail();
 						List<FlightSegement> goreSegs = new ArrayList<FlightSegement>();
-
 						// 创建往返航班对象
 						RoundTripFlightInfo rtf = new RoundTripFlightInfo();
 						rtf.setRetdepdate(reDetail.getDepdate()); // 返程日期
@@ -470,6 +401,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 						rtf.setOutboundPrice(goDetail.getPrice()); // 去程价格
 						rtf.setReturnedPrice(reDetail.getPrice()); // 返程价格
 
+						FlightDetail goreDetail = new FlightDetail();
 						// 往返详细
 						goreDetail.setDepcity(goDetail.getDepcity());
 						goreDetail.setArrcity(goDetail.getArrcity());
@@ -479,7 +411,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 						flightnoAll.addAll(reDetail.getFlightno());
 						goreDetail.setFlightno(flightnoAll);
 						goreDetail.setMonetaryunit(goDetail.getMonetaryunit());
-						goreDetail.setTax(goDetail.getTax());
+						goreDetail.setTax(sum(goDetail.getTax(), reDetail.getTax()));
 						goreDetail.setPrice(sum(goDetail.getPrice(), reDetail.getPrice()));
 						goreDetail.setWrapperid(goDetail.getWrapperid());
 						// 添加去程
@@ -505,6 +437,10 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			result.setRet(false);
 			result.setStatus(Constants.PARSING_FAIL);
 			return result;
+		} finally{
+			if(null != getMethod){
+				getMethod.releaseConnection();
+			}
 		}
 	}
 
