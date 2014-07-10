@@ -59,13 +59,16 @@ import com.qunar.qfwrapper.util.QFPostMethod;
 public class Wrapper_gjdairbm001 implements QunarCrawler{
 
 	public static Map<String,String> cookieMap = new HashMap<String,String>();
+	public static Map<String,String> airportMap = new HashMap<String,String>();
 	// 单程航班
 	public static void main(String[] args) {
 		FlightSearchParam searchParam = new FlightSearchParam();
 		//ABZ EBJ 2014-07-14
-		searchParam.setDep("BRU");
-		searchParam.setArr("EMA");
-		searchParam.setDepDate("2014-7-17");
+		//BRU EMA 2014-07-17
+		//BRE TLS 2014-7-30
+		searchParam.setDep("ABZ");
+		searchParam.setArr("EBJ");
+		searchParam.setDepDate("2014-07-14");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjdairbm001");
 		searchParam.setToken("");
@@ -92,22 +95,40 @@ public class Wrapper_gjdairbm001 implements QunarCrawler{
 	
 	@SuppressWarnings("deprecation")
 	public String getHtml(FlightSearchParam param) {
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+		Calendar cal = Calendar.getInstance();
 		QFGetMethod get = null;
 		QFPostMethod post = null;
 		try {	
 			QFHttpClient httpClient = new QFHttpClient(param, false);
 			//对于需要cookie的网站，请自己处理cookie（必须）
 			httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
+			// 主页html
+			String indexUrl = String.format("http://www.bmiregional.com/en");
+			get = new QFGetMethod(indexUrl);
+			httpClient.executeMethod(get);
+			String indexHtml = get.getResponseBodyAsString();
+			String airportSettings = StringUtils.substringBetween(indexHtml, "var airportSettings =", ";");
+			// 航空信息转成数组
+			JSONArray airportAjson = JSON.parseArray(airportSettings);
+			for(int i=0;i<airportAjson.size();i++){
+				JSONObject jsonObject = airportAjson.getJSONObject(i);
+				airportMap.put(String.valueOf(jsonObject.get("Code")), jsonObject.toString());
+			}
+			String airportStr = airportMap.get(param.getDep());
+			// 货币
+			String currency = "";
+			if(airportStr != null && !"".equals(airportStr)){
+				currency = airportStr.substring(airportStr.indexOf("[")+2, airportStr.indexOf("]")-1);
+			}
 			// 计算起飞时间相邻一天
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-			Calendar cal = Calendar.getInstance();
 			Date depDate = sdf.parse(param.getDepDate());
 			cal.setTime(depDate);
 			cal.add(Calendar.DATE, 1);
 			String depTime = sdf.format(cal.getTime());
 			// 请求地址
-			String getUrl = String.format("http://www.bmiregional.com/en/Flight/Search?interline=false&fromCityCode=%s&toCityCode=%s&departureDateString=%s&returnDateString=%s&adults=1&children=0&infants=0&roundTrip=false&useFlexDates=false&allInclusive=undefined&promocode=&fareTypes=undefined&currency=GBP",
-					param.getDep(),param.getArr(),param.getDepDate(),depTime);
+			String getUrl = String.format("http://www.bmiregional.com/en/Flight/Search?interline=false&fromCityCode=%s&toCityCode=%s&departureDateString=%s&returnDateString=%s&adults=1&children=0&infants=0&roundTrip=false&useFlexDates=false&allInclusive=undefined&promocode=&fareTypes=undefined&currency=%s",
+					param.getDep(),param.getArr(),param.getDepDate(),depTime,currency);
 			get = new QFGetMethod(getUrl);
 			get.setFollowRedirects(false);
 			get.getParams().setContentCharset("utf-8");
@@ -141,7 +162,7 @@ public class Wrapper_gjdairbm001 implements QunarCrawler{
 				cal.add(Calendar.DATE, 30);
 				String endDateTime = sdf.format(cal.getTime());
 				// json参数
-				String jsonbody = "{\"interline\":false,\"fromCityCode\":\""+param.getDep()+"\",\"toCityCode\":\""+param.getArr()+"\",\"departureDateString\":\""+param.getDepDate()+"\",\"returnDateString\":\""+depTime+"\",\"startDateStringOutbound\":\""+startDateTime+"\",\"endDateStringOutbound\":\""+endDateTime+"\",\"startDateStringInbound\":\"\",\"endDateStringInbound\":\"\",\"adults\":1,\"children\":0,\"infants\":0,\"roundTrip\":false,\"useFlexDates\":false,\"isOutbound\":true,\"filterMethod\":\"100\",\"promocode\":\"\",\"currency\":\"GBP\"}";
+				String jsonbody = "{\"interline\":false,\"fromCityCode\":\""+param.getDep()+"\",\"toCityCode\":\""+param.getArr()+"\",\"departureDateString\":\""+param.getDepDate()+"\",\"returnDateString\":\""+depTime+"\",\"startDateStringOutbound\":\""+startDateTime+"\",\"endDateStringOutbound\":\""+endDateTime+"\",\"startDateStringInbound\":\"\",\"endDateStringInbound\":\"\",\"adults\":1,\"children\":0,\"infants\":0,\"roundTrip\":false,\"useFlexDates\":false,\"isOutbound\":true,\"filterMethod\":\"100\",\"promocode\":\"\",\"currency\":\""+currency+"\"}";
 				// 把Soap请求数据添加到PostMethod中
 				byte[] b = jsonbody.getBytes("utf-8");
 				InputStream is = new ByteArrayInputStream(b, 0, b.length);
@@ -286,42 +307,61 @@ public class Wrapper_gjdairbm001 implements QunarCrawler{
 	}
 
 	public BookingResult getBookingInfo(FlightSearchParam param) {
-		//http://www.bmiregional.com/en/Flight/Search?interline=false&fromCityCode=ABZ&toCityCode=EBJ&departureDateString=2014-7-14&returnDateString=2014-7-15&adults=1&children=0&infants=0&roundTrip=false&useFlexDates=false&allInclusive=undefined&promocode=&fareTypes=undefined&currency=GBP
 		String bookingUrlPre = "http://www.bmiregional.com/en/Flight/Search";
 		BookingResult bookingResult = new BookingResult();
 		BookingInfo bookingInfo = new BookingInfo();
 		bookingInfo.setAction(bookingUrlPre);
-		bookingInfo.setMethod("get");	
-		// 计算起飞时间相邻一天
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-		Calendar cal = Calendar.getInstance();
-		Date depDate = null;
+		bookingInfo.setMethod("get");
 		try {
-			depDate = sdf.parse(param.getDepDate());
+			QFHttpClient httpClient = new QFHttpClient(param, false);
+			// 主页html
+			String indexUrl = String.format("http://www.bmiregional.com/en");
+			QFGetMethod get = new QFGetMethod(indexUrl);
+			httpClient.executeMethod(get);
+			String indexHtml = get.getResponseBodyAsString();
+			String airportSettings = StringUtils.substringBetween(indexHtml, "var airportSettings =", ";");
+			// 航空信息转成数组
+			JSONArray airportAjson = JSON.parseArray(airportSettings);
+			for(int i=0;i<airportAjson.size();i++){
+				JSONObject jsonObject = airportAjson.getJSONObject(i);
+				airportMap.put(String.valueOf(jsonObject.get("Code")), jsonObject.toString());
+			}
+			String airportStr = airportMap.get(param.getDep());
+			// 货币
+			String currency = "";
+			if(airportStr != null && !"".equals(airportStr)){
+				currency = airportStr.substring(airportStr.indexOf("[")+2, airportStr.indexOf("]")-1);
+			}
+			// 计算起飞时间相邻一天
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+			Calendar cal = Calendar.getInstance();
+			Date depDate = sdf.parse(param.getDepDate());
+			cal.setTime(depDate);
+			cal.add(Calendar.DATE, 1);
+			String depTime = sdf.format(cal.getTime());
+			Map<String, String> map = new LinkedHashMap<String, String>();
+			map.put("interline", "false");
+			map.put("fromCityCode", param.getDep());
+			map.put("toCityCode", param.getArr());
+			map.put("departureDateString", param.getDepDate());
+			map.put("returnDateString", depTime);
+			map.put("adults", "1");
+			map.put("children", "0");
+			map.put("infants", "0");
+			map.put("roundTrip", "false");
+			map.put("useFlexDates", "false");
+			map.put("allInclusive", "undefined");
+			map.put("promocode", "");
+			map.put("fareTypes", "undefined");
+			map.put("currency", currency);
+			bookingInfo.setInputs(map);
+			bookingResult.setData(bookingInfo);
+			bookingResult.setRet(true);
 		} catch (ParseException e) {
 			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
-		cal.setTime(depDate);
-		cal.add(Calendar.DATE, 1);
-		String depTime = sdf.format(cal.getTime());
-		Map<String, String> map = new LinkedHashMap<String, String>();
-		map.put("interline", "false");
-		map.put("fromCityCode", param.getDep());
-		map.put("toCityCode", param.getArr());
-		map.put("departureDateString", param.getDepDate());
-		map.put("returnDateString", depTime);
-		map.put("adults", "1");
-		map.put("children", "0");
-		map.put("infants", "0");
-		map.put("roundTrip", "false");
-		map.put("useFlexDates", "false");
-		map.put("allInclusive", "undefined");
-		map.put("promocode", "");
-		map.put("fareTypes", "undefined");
-		map.put("currency", "GBP");
-		bookingInfo.setInputs(map);
-		bookingResult.setData(bookingInfo);
-		bookingResult.setRet(true);
 		return bookingResult;
 	}
 	
