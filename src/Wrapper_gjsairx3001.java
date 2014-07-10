@@ -262,7 +262,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				
 			/*****获取返程信息*****/
 			// 返程html片段
-			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"/>");
+			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\">");
 			// 返程日期
 			String retDateHtml = StringUtils.substringBetween(html,"<label class=\"input date to perspective js-date-container\">","</label>");
 			String retDate = StringUtils.substringBetween(retDateHtml,"value=\"","\"").replace(",", "");
