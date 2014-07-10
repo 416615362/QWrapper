@@ -1,17 +1,14 @@
 import java.math.BigDecimal;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.lang.StringUtils;
-
 import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.google.common.collect.Lists;
 import com.qunar.qfwrapper.bean.booking.BookingInfo;
@@ -122,8 +119,6 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 
 	public ProcessResultInfo process(String html, FlightSearchParam param) {
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-		QFHttpClient httpClient = new QFHttpClient(param, false);
-		QFGetMethod getMethod = null;
 		/* ProcessResultInfo中，
 		 * ret为true时，status可以为：SUCCESS(抓取到机票价格)|NO_RESULT(无结果，没有可卖的机票)
 		 * ret为false时，status可以为:CONNECTION_FAIL|INVALID_DATE|INVALID_AIRLINE|PARSING_FAIL|PARAM_ERROR
@@ -267,7 +262,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 				
 			/*****获取返程信息*****/
 			// 返程html片段
-			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"></div>");
+			String returnHtml = StringUtils.substringBetween(html, "<div class=\"flights round qReturnFlight\">", "<div class=\"clear\"/>");
 			// 返程日期
 			String retDateHtml = StringUtils.substringBetween(html,"<label class=\"input date to perspective js-date-container\">","</label>");
 			String retDate = StringUtils.substringBetween(retDateHtml,"value=\"","\"").replace(",", "");
@@ -437,11 +432,7 @@ public class Wrapper_gjsairx3001 implements QunarCrawler{
 			result.setRet(false);
 			result.setStatus(Constants.PARSING_FAIL);
 			return result;
-		} finally{
-			if(null != getMethod){
-				getMethod.releaseConnection();
-			}
-		}
+		} 
 	}
 
 	public double sum(double d1, double d2) {

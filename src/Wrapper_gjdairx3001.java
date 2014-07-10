@@ -35,9 +35,9 @@ public class Wrapper_gjdairx3001 implements QunarCrawler{
 		//SXF-KGS 2014-07-12
 		//HAM-ATH 2014-07-19
 		//BRI-ZRH 2014-09-20
-		searchParam.setDep("HAM");//DUS
-		searchParam.setArr("ATH");//MAD
-		searchParam.setDepDate("2014-07-19");//2014-07-15
+		searchParam.setDep("DUS");
+		searchParam.setArr("MAD");
+		searchParam.setDepDate("2014-07-15");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjdairx3001");
 		searchParam.setToken("");
