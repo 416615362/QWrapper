@@ -34,9 +34,10 @@ public class Wrapper_gjdairz6001 implements QunarCrawler{
 		FlightSearchParam searchParam = new FlightSearchParam();
 		//KBP DNK 2014-07-23
 		//VAR BUS 2014-07-12
+		//IFO DNK 2014-07-16
 		searchParam.setDep("IFO");
 		searchParam.setArr("DNK");
-		searchParam.setDepDate("2014-07-12");
+		searchParam.setDepDate("2014-07-16");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjdairz6001");
 		searchParam.setToken("");
@@ -113,78 +114,88 @@ public class Wrapper_gjdairz6001 implements QunarCrawler{
 		try {
 			// 单程航班信息
 			List<OneWayFlightInfo> flightList = new ArrayList<OneWayFlightInfo>();
-			OneWayFlightInfo baseFlight = new OneWayFlightInfo();
-			FlightDetail flightDetail = new FlightDetail();
-			List<FlightSegement> segs = new ArrayList<FlightSegement>();
-			List<String> flightNoList = new ArrayList<String>();
-			// 航班次信息
-			String[] flightInfos = StringUtils.substringsBetween(html, "el.reference =", "<br />");
-			for(int i=0;i<flightInfos.length;i++){
+			// 查询多组航班
+			String[] referencesStr = StringUtils.substringsBetween(html, "data[urlodAO3AvailReference]", "class=\"inputText\"");
+			for(int ii=0;ii<referencesStr.length;ii++){
+				OneWayFlightInfo baseFlight = new OneWayFlightInfo();
+				List<FlightSegement> segs = new ArrayList<FlightSegement>();
+				List<String> flightNoList = new ArrayList<String>();
+				// 关系内容
+				String references = referencesStr[ii];
+				// 关系名称
+				String refName = StringUtils.substringBetween(references,"[","]").substring(3);
+				// 关系值
+				String refValue = StringUtils.substringBetween(references,"value=\"","\"");
+				String urlReference = URLEncoder.encode(refValue,"UTF-8");
+				String segHtml = StringUtils.substringBetween(html, "seg.urlReference = '"+urlReference+"';", "seg.stops = new Array();");
 				// 航班次信息
-				String flightInfo = flightInfos[i];
-				// 航班号
-				String flightNumber = StringUtils.substringBetween(flightInfo, "el.vendorCode = '", "';")+StringUtils.substringBetween(flightInfo, "el.flightNumber = '", "';");
-				// 出发机场三字码
-				String dst = StringUtils.substringBetween(flightInfo, "el.destination = '", "';");
-				// 到达机场三字码
-				String org = StringUtils.substringBetween(flightInfo, "el.origin = '", "';");
+				String[] flightInfoHtml = StringUtils.substringsBetween(html, "el.reference = '"+refName+"';", "el.durationMouseOver");
+				for(int i=0;i<flightInfoHtml.length;i++){
+					// 航班次信息
+					String flightInfo = flightInfoHtml[i];
+					// 航班号
+					String flightNumber = StringUtils.substringBetween(flightInfo, "el.vendorCode = '", "';")+StringUtils.substringBetween(flightInfo, "el.flightNumber = '", "';");
+					// 出发机场三字码
+					String dst = StringUtils.substringBetween(flightInfo, "el.destination = '", "';");
+					// 到达机场三字码
+					String org = StringUtils.substringBetween(flightInfo, "el.origin = '", "';");
+					// 出发时间
+					String depTime = StringUtils.substringBetween(flightInfo, "el.departureTime = '", "';");
+					// 到达时间
+					String arrTime = StringUtils.substringBetween(flightInfo, "el.arrivalTime = '", "';");
+					/************添加FlightSegement信息****************/
+					FlightSegement seg = new FlightSegement();
+					// 添加信息
+					flightNoList.add(flightNumber);
+					seg.setFlightno(flightNumber);
+					// 起飞日期
+					seg.setDepDate(param.getDepDate());
+					// 抵达日期
+					seg.setArrDate(param.getDepDate());
+					// 出发机场三字码
+					seg.setDepairport(dst);
+					// 到达机场三字码
+					seg.setArrairport(org);
+					// 出发时间
+					seg.setDeptime(depTime);
+					// 到达时间
+					seg.setArrtime(arrTime);
+					segs.add(seg);
+				}
+				// 价格
+				String amount = StringUtils.substringBetween(segHtml, "seg.priceBase = ", ";");
+				// 含税金额
+				String amountIncludeTax = StringUtils.substringBetween(segHtml, "seg.priceTotal = ", ";");
+				// 税
+				Double tax = null;
+				if(!"".equals(amount) && !"".equals(amountIncludeTax)){
+					tax = (double) Math.round((Double.parseDouble(amountIncludeTax) - Double.parseDouble(amount))*100)/100;
+				}
+				// 货币单位
+				String currency = StringUtils.substringBetween(segHtml, "seg.currency = '", "';");
+				/************添加FlightDetail信息****************/
+				FlightDetail flightDetail = new FlightDetail();
 				// 出发时间
-				String depTime = StringUtils.substringBetween(flightInfo, "el.departureTime = '", "';");
-				// 到达时间
-				String arrTime = StringUtils.substringBetween(flightInfo, "el.arrivalTime = '", "';");
-				/************添加FlightSegement信息****************/
-				FlightSegement seg = new FlightSegement();
-				// 添加信息
-				flightNoList.add(flightNumber);
-				seg.setFlightno(flightNumber);
-				// 起飞日期
-				seg.setDepDate(param.getDepDate());
-				// 抵达日期
-				seg.setArrDate(param.getDepDate());
-				// 出发机场三字码
-				seg.setDepairport(dst);
-				// 到达机场三字码
-				seg.setArrairport(org);
-				// 出发时间
-				seg.setDeptime(depTime);
-				// 到达时间
-				seg.setArrtime(arrTime);
-				segs.add(seg);
+				flightDetail.setDepdate(sdf.parse(param.getDepDate()));
+				// 航班号列表
+				flightDetail.setFlightno(flightNoList);
+				// 价格，该航班上的最低价
+				flightDetail.setPrice(Double.parseDouble(amount));
+				// 税
+				flightDetail.setTax(tax);
+				// 货币单位
+				flightDetail.setMonetaryunit(currency);
+				// 出发三字码
+				flightDetail.setDepcity(param.getDep());
+				// 到达三字码
+				flightDetail.setArrcity(param.getArr());
+				// 抓取器id
+				flightDetail.setWrapperid(param.getWrapperid());
+				// 添加单程航班信息集合
+				baseFlight.setDetail(flightDetail);
+				baseFlight.setInfo(segs);
+				flightList.add(baseFlight);
 			}
-			
-			// 价格
-			String amount = StringUtils.substringBetween(html, "seg.priceBase = ", ";");
-			// 含税金额
-			String amountIncludeTax = StringUtils.substringBetween(html, "seg.priceTotal = ", ";");
-			// 税
-			Double tax = null;
-			if(!"".equals(amount) && !"".equals(amountIncludeTax)){
-				tax = (double) Math.round((Double.parseDouble(amountIncludeTax) - Double.parseDouble(amount))*100)/100;
-			}
-			// 货币单位
-			String currency = StringUtils.substringBetween(html, "seg.currency = '", "';");
-			/************添加FlightDetail信息****************/
-			// 出发时间
-			flightDetail.setDepdate(sdf.parse(param.getDepDate()));
-			// 航班号列表
-			flightDetail.setFlightno(flightNoList);
-			// 价格，该航班上的最低价
-			flightDetail.setPrice(Double.parseDouble(amount));
-			// 税
-			flightDetail.setTax(tax);
-			// 货币单位
-			flightDetail.setMonetaryunit(currency);
-			// 出发三字码
-			flightDetail.setDepcity(param.getDep());
-			// 到达三字码
-			flightDetail.setArrcity(param.getArr());
-			// 抓取器id
-			flightDetail.setWrapperid(param.getWrapperid());
-			// 添加单程航班信息集合
-			baseFlight.setDetail(flightDetail);
-			baseFlight.setInfo(segs);
-			flightList.add(baseFlight);
-			
 			result.setRet(true);
 			result.setStatus(Constants.SUCCESS);
 			result.setData(flightList);
