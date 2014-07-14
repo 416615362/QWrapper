@@ -32,11 +32,11 @@ public class Wrapper_gjdairz6001 implements QunarCrawler{
 	// 单程航班
 	public static void main(String[] args) {
 		FlightSearchParam searchParam = new FlightSearchParam();
-		//KBP DNK 2014-07-23
-		//VAR BUS 2014-07-12
-		//IFO DNK 2014-07-16
-		searchParam.setDep("IFO");
-		searchParam.setArr("DNK");
+		//DNK KBP 2014-07-23
+		//BUS VAR 2014-07-12
+		//DNK IFO 2014-07-16
+		searchParam.setDep("DNK");
+		searchParam.setArr("IFO");
 		searchParam.setDepDate("2014-07-16");
 		searchParam.setTimeOut("60000");
 		searchParam.setWrapperid("gjdairz6001");
@@ -69,9 +69,9 @@ public class Wrapper_gjdairz6001 implements QunarCrawler{
 			//对于需要cookie的网站，请自己处理cookie（必须）
 			httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
 			// 第一步请求地址
-			String oneUrl = "http://booking.dniproavia.com/?action=vFlights&flights[0][departureDate]="+param.getDepDate()+"&flights[0][destination]="+param.getDep()+"&flights[0][origin]="+param.getArr()+"&travelers[0]=ADT&returnTicket=&step=ChooseFromFour";
+			String oneUrl = "http://booking.dniproavia.com/?action=vFlights&flights[0][departureDate]="+param.getDepDate()+"&flights[0][destination]="+param.getArr()+"&flights[0][origin]="+param.getDep()+"&travelers[0]=ADT&returnTicket=&step=ChooseFromFour";
 			// 第二步请求地址
-			String forUrl = String.format("?action=vFlights&flights[0][departureDate]=%s&flights[0][destination]=%s&flights[0][origin]=%s&travelers[0]=ADT&returnTicket=&step=ChooseFromFour&lang=en",param.getDepDate(),param.getDep(),param.getArr());
+			String forUrl = String.format("?action=vFlights&flights[0][departureDate]=%s&flights[0][destination]=%s&flights[0][origin]=%s&travelers[0]=ADT&returnTicket=&step=ChooseFromFour&lang=en",param.getDepDate(),param.getArr(),param.getDep());
 			String twoUrl = "http://booking.dniproavia.com/index.php"+URLEncoder.encode(forUrl,"UTF-8");
 			get = new QFGetMethod(twoUrl);
 			httpClient.executeMethod(get);
@@ -216,8 +216,8 @@ public class Wrapper_gjdairz6001 implements QunarCrawler{
 		Map<String, String> map = new LinkedHashMap<String, String>();
 		map.put("action", "vFlights");
 		map.put("flights[0][departureDate]", param.getDepDate());
-		map.put("flights[0][destination]", param.getDep());
-		map.put("flights[0][origin]", param.getArr());
+		map.put("flights[0][destination]", param.getArr());
+		map.put("flights[0][origin]", param.getDep());
 		map.put("travelers[0]", "ADT");
 		map.put("returnTicket", "");
 		map.put("step", "ChooseFromFour");
